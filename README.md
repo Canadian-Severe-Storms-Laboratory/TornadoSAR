@@ -3,6 +3,7 @@
 
 ### Installation
 &emsp; • Install ArcGIS Pro version 3.3+<br/>
+&emsp; • Install ESA SNAP<br/>
 &emsp; • Download the latest TornadoSAR release from the releases tab (TornadoSAR.esriAddinX) →<br/>
 &emsp; • Run the .esriAddinX file to install the Add-In<br/>
 &emsp; • Open ArcGIS Pro and select the TornadoSAR Tab in the top header<br/>
