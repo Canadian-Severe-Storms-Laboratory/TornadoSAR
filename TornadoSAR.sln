@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TornadoSAR", "TornadoSAR.csproj", "{5355B5C1-2F4E-4F6C-B233-7B362B164431}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Debug|x64.ActiveCfg = Debug|x64
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Debug|x64.Build.0 = Debug|x64
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Release|x64.ActiveCfg = Release|x64
+		{5355B5C1-2F4E-4F6C-B233-7B362B164431}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F64E1C02-8ECD-401E-8967-6268677F4573}
+	EndGlobalSection
+EndGlobal

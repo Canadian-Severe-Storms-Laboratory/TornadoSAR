@@ -1,0 +1,36 @@
+﻿<ArcGIS defaultAssembly="TornadoSAR.dll" defaultNamespace="TornadoSAR" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+  <AddInInfo id="{cedf50a7-e264-4d27-9920-10d994caa350}" version="1.0" desktopVersion="3.3.52636" product="ArcGISPro">
+    <Name>TornadoSAR</Name>
+    <Description>TornadoSAR description</Description>
+    <Image>Images\AddinDesktop32.png</Image>
+    <Author>Daniel Butt</Author>
+    <Company>CSSL</Company>
+    <Date>9/11/2024 12:09:22 PM</Date>
+    <Subject>Framework</Subject>
+    <!-- Note subject can be one or more of these topics:
+                    Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
+  </AddInInfo>
+  <modules>
+    <insertModule id="TornadoSAR_Module" className="Module1" autoLoad="false" caption="Module1">
+      <!-- uncomment to have the control hosted on a separate tab-->
+      <tabs>
+        <tab id="TornadoSAR_Tab1" caption="Tornado SAR">
+          <group refID="TornadoSAR_Group1" />
+        </tab>
+      </tabs>
+      <groups>
+        <!-- comment this out if you have no controls on the Addin tab to avoid
+              an empty group-->
+        <group id="TornadoSAR_Group1" caption="" appearsOnAddInTab="false">
+          <button refID="TornadoSAR_Main" size="large" />
+        </group>
+      </groups>
+      <controls>
+        <!-- add your controls here -->
+        <button id="TornadoSAR_Main" caption="Analysis" className="ShowMain" loadOnClick="true" smallImage="GenericButtonPurple16" largeImage="GenericButtonPurple32">
+          <tooltip heading="Tooltip Heading">Tooltip text<disabledText /></tooltip>
+        </button>
+      </controls>
+    </insertModule>
+  </modules>
+</ArcGIS>
