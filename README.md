@@ -7,4 +7,4 @@
 &emsp; • Run the .esriAddinX file to install the Add-In<br/>
 &emsp; • Open ArcGIS Pro and select the TornadoSAR Tab in the top header<br/>
 
-
+![alt text](https://github.com/Northern-Tornadoes-Project/TornadoSAR/blob/main/Screenshot.png)
