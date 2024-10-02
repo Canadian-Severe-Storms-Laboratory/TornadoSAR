@@ -1,6 +1,7 @@
 ﻿using ArcGIS.Core.Geometry;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Mapping;
+using ScottPlot;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -36,32 +37,20 @@ namespace TornadoSAR
 
                 SarAnalyser sarAnalyser = BuildSarAnalyser();
 
-                List<double> values = new();
+                List<double> VHvalues = new();
+                List<double> VVvalues = new();
 
                 await QueuedTask.Run(async () =>
                 {
                     PrintTitle();
 
-                    values = await sarAnalyser.Analyze();
+                    (VHvalues, VVvalues) = await sarAnalyser.Analyze();
 
                     Console.WriteLine("Done.\n");
                 });
 
-                var plot = resultsPlot.Plot;
-                ScottPlot.Statistics.BasicStats stats = new ScottPlot.Statistics.BasicStats(values.ToArray());
-                ScottPlot.Statistics.Histogram hist = new(min: stats.Min, stats.Max, binCount: 10);
-                hist.AddRange(values);
-
-                var barPlot = plot.AddBar(values: hist.GetProbability(), positions: hist.Bins);
-                barPlot.BarWidth = (stats.Max - stats.Min) / 10;
-                plot.YAxis.Label("Density");
-                plot.XAxis.Label("Pixel Value");
-                plot.Title("Normalized VH*VV difference histogram for AOI");
-                plot.SetAxisLimits(yMin: 0);
-                plot.AddVerticalLine(x: stats.Mean, color: System.Drawing.Color.Black, style: ScottPlot.LineStyle.Dash, label: "Mean: " + Math.Round(stats.Mean, 2).ToString());
-                plot.Legend(location: ScottPlot.Alignment.UpperRight);
-
-                resultsPlot.Refresh();
+                PlotHistogram(VHvalues, VHPlot, "VH");
+                PlotHistogram(VVvalues, VVPlot, "VV");
 
                 tabController.SelectedIndex = 2;
 
@@ -74,6 +63,29 @@ namespace TornadoSAR
             }
 
             runButton.IsEnabled = true;
+        }
+
+        private void PlotHistogram(List<double> values, WpfPlot plot, string bandName)
+        {
+            values.Sort();
+            double min = values[(int)(values.Count * 0.01)];
+            double max = values[(int)(values.Count * 0.99)];
+
+            var plt = plot.Plot;
+            ScottPlot.Statistics.BasicStats stats = new ScottPlot.Statistics.BasicStats(values.ToArray());
+            ScottPlot.Statistics.Histogram hist = new(min, max, binCount: 8, addOutliersToEdgeBins: true);
+            hist.AddRange(values);
+
+            var barPlot = plt.AddBar(values: hist.GetProbability(), positions: hist.Bins);
+            barPlot.BarWidth = (max - min) / 8;
+            plt.YAxis.Label("Percentage of Pixels");
+            plt.XAxis.Label("Pixel Value");
+            plt.Title(bandName + " difference histogram for AOI");
+            plt.SetAxisLimits(yMin: 0);
+            plt.AddVerticalLine(x: stats.Mean, color: System.Drawing.Color.Red, width: 2, style: ScottPlot.LineStyle.Dash, label: "Mean: " + Math.Round(stats.Mean, 2).ToString());
+            plt.Legend(location: ScottPlot.Alignment.UpperRight);
+
+            plot.Refresh();
         }
 
         private SarAnalyser BuildSarAnalyser()
@@ -123,6 +135,18 @@ namespace TornadoSAR
                           " / / / _ \\/ __/ _ \\/ _ `/ _  / _ \\  _\\ \\/ __ |/ , _/\n" +
                           "/_/  \\___/_/ /_//_/\\_,_/\\_,_/\\___/ /___/_/ |_/_/|_| \n\n" +
                           "----------------------------------------------------------\n\n");
+        }
+
+        private void histogramToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            VHPlot.Visibility = Visibility.Visible;
+            VVPlot.Visibility = Visibility.Hidden;
+        }
+
+        private void histogramToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            VVPlot.Visibility = Visibility.Visible;
+            VHPlot.Visibility = Visibility.Hidden;
         }
     }
 }

@@ -41,8 +41,11 @@
             </TabItem>
             <TabItem Header="Results" Width="100">
                 <Grid>
-                    <WpfPlot x:Name="resultsPlot" Margin="10,10,10,10"/>
-
+                    <CheckBox x:Name="histogramToggle" Style="{DynamicResource Esri_CheckboxToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,50,0" Unchecked="histogramToggle_Unchecked" Checked="histogramToggle_Checked"/>
+                    <Label Content="VH" HorizontalAlignment="Right" Margin="0,1,80,0" VerticalAlignment="Top"/>
+                    <Label Content="VV" HorizontalAlignment="Right" Margin="0,1,30,0" VerticalAlignment="Top"/>
+                    <WpfPlot x:Name="VHPlot" Margin="10,30,10,10"/>
+                    <WpfPlot x:Name="VVPlot" Margin="10,30,10,10" Visibility="Hidden"/>
                 </Grid>
             </TabItem>
             <TabItem Header="Console" Width="100">

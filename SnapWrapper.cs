@@ -3,9 +3,10 @@ using System.Diagnostics;
 
 public static class SnapWrapper
 {
-    public static void RunCommand(string command)
+    public static void RunCommand(string command, bool verbose=true)
     {
-        Console.Write("Running SNAP " + command.Split(' ')[0]);
+        if (verbose) Console.Write("   Running SNAP " + command.Split(' ')[0]);
+
         ProcessStartInfo ProcessInfo = new ProcessStartInfo("cmd.exe", "/c gpt " + command);
         ProcessInfo.CreateNoWindow = true;
         ProcessInfo.UseShellExecute = false;

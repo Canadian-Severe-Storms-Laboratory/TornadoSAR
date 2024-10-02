@@ -1,18 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
 using ArcGIS.Core.CIM;
-using ArcGIS.Core.Data;
+using ArcGIS.Core.Data.Raster;
 using ArcGIS.Core.Geometry;
-using ArcGIS.Desktop.Core.Geoprocessing;
-using ArcGIS.Desktop.Framework.Threading.Tasks;
+using ArcGIS.Desktop.Internal.DesktopService;
 using ArcGIS.Desktop.Mapping;
 using OpenCvSharp;
-using ScottPlot;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using static ArcGISUtils.Utils;
 using static LandCover.LandCoverType;
 
@@ -39,16 +33,20 @@ namespace TornadoSAR
             System.IO.Directory.CreateDirectory(resultsPath);
         }
 
-        public async Task<List<double>> Analyze()
+        public async Task<Tuple<List<double>, List<double>>> Analyze()
         {
-            var (collocatedLayer, compositeLayer) = ContructSARRasters();
+            var collocatedLayer = ContructSARRasters();
 
+            Console.WriteLine("Loading Collocated Raster");
             List<Mat> bands = LoadCollocatedRaster(collocatedLayer);
 
-            Mat diffMul = Normalized_VH_VV_Difference(bands);
+            Console.WriteLine("Constructing Composite Raster");
+            Mat diff = ReverseDifference(bands);
 
-            WriteComposite(diffMul, compositeLayer);
+            Console.WriteLine("Loading Composite Raster");
+            RasterLayer compositeLayer = LoadComposite(diff);
 
+            Console.WriteLine("Computing AOI Statistics");
             Mat mask = PolygonAOIMask(collocatedLayer);
 
             //Mat LandCoverMask = LandCover.TypeMask(LandCover.GetSection(collocatedLayer), [ConiferousForest, TaigaForest, DeciduousForest, MixedForest, Grassland, Shrubland]);
@@ -57,20 +55,42 @@ namespace TornadoSAR
 
             //WriteComposite(LandCoverMask.Resize(polyMask.Size(), interpolation: InterpolationFlags.Nearest), compositeLayer);
 
-            mask.GetArray(out byte[] maskArray);
-            diffMul.GetArray(out float[] pixels);
+            return GetAOIValues(mask, diff);
+        }
 
-            List<double> values = new();
+
+        private Tuple<List<double>, List<double>> GetAOIValues(Mat mask, Mat diff)
+        {
+            mask.GetArray(out byte[] maskArray);
+            Cv2.Split(diff, out Mat[] diffs);
+            diffs[0].GetArray(out float[] VHpixels);
+            diffs[1].GetArray(out float[] VVpixels);
+
+            List<double> VHvalues = new(VHpixels.Length);
+            List<double> VVvalues = new(VVpixels.Length);
 
             for (int i = 0; i < maskArray.Length; i++)
             {
-                if (maskArray[i] > 0 && pixels[i] > 0)
+                if (maskArray[i] > 0)
                 {
-                    values.Add(pixels[i]);
+                    VHvalues.Add(VHpixels[i]);
+                    VVvalues.Add(VVpixels[i]);
                 }
             }
 
-            return values;
+            return new (VHvalues, VVvalues);
+        }
+
+        private Mat ReverseDifference(List<Mat> bands)
+        {
+            Mat diffVH = bands[0].Subtract(bands[2]);
+            Mat diffVV = bands[1].Subtract(bands[3]);
+
+            Mat diff = new Mat();
+
+            Cv2.Merge([diffVH, diffVV], diff);
+
+            return diff;
         }
 
         private Mat PolygonAOIMask(RasterLayer collocatedLayer)
@@ -96,18 +116,25 @@ namespace TornadoSAR
             return "\"POLYGON((" + xmin + " " + ymax + ", " + xmax + " " + ymax + ", " + xmax + " " + ymin + ", " + xmin + " " + ymin + ", " + xmin + " " + ymax + "))\"";
         }
 
-        private void WriteComposite(Mat diff, RasterLayer compositeLayer)
+        private RasterLayer LoadComposite(Mat diff)
         {
-            WriteRaster<float>(diff, compositeLayer.GetRaster());
+            var compositeDataset = OpenRasterDataset(resultsPath, "composite.tif");
+            Raster compositeRaster = compositeDataset.CreateFullRaster();
 
-            var colorizer = compositeLayer.GetColorizer() as CIMRasterRGBColorizer;
-            colorizer.RedBandIndex = 1;
-            colorizer.GreenBandIndex = 2;
+            WriteRaster<float>(diff, compositeRaster);
+
+            var compositeLayer = LoadRasterLayer(resultsPath, "composite.tif");
+
+            CIMRasterRGBColorizer colorizer = new();
+            colorizer.RedBandIndex = 2;
+            colorizer.GreenBandIndex = 3;
             colorizer.BlueBandIndex = 0;
-            colorizer.StretchType = RasterStretchType.MinimumMaximum;
+            colorizer.DisplayBackgroundValue = true;
             compositeLayer.SetColorizer(colorizer);
 
             MapView.Active.Redraw(true);
+
+            return compositeLayer;
         }
 
         private List<Mat> LoadCollocatedRaster(RasterLayer collocatedLayer)
@@ -128,6 +155,7 @@ namespace TornadoSAR
             colorizer.GreenBandIndex = 2;
             colorizer.BlueBandIndex = 3;
             colorizer.DisplayBackgroundValue = true;
+
             collocatedLayer.SetColorizer(colorizer);
 
             List<Mat> bands = [postBands[0], postBands[1], preBands[0], preBands[1]];
@@ -140,22 +168,23 @@ namespace TornadoSAR
             return bands;
         }
 
-        private Tuple<RasterLayer, RasterLayer> ContructSARRasters()
+        private RasterLayer ContructSARRasters()
         {
+            Console.WriteLine("Constructing Pre Raster...");
             string preCorrectedPath = CorrectSARData(prePath, "pre");
+            Console.WriteLine("\nConstructing Post Raster...");
             string postCorrectedPath = CorrectSARData(postPath, "post");
 
             string collocatedPath = "\"" + resultsPath + "\\collocated.dim\"";
 
+            Console.WriteLine("\nConstructing Collocated Raster...");
             SnapWrapper.RunCommand("collocate " + postCorrectedPath + " " + preCorrectedPath + " -t " + collocatedPath);
             SnapWrapper.RunCommand("speckle-filter " + collocatedPath + " -Pfilter=\"Refined Lee\" -PsourceBands=\"Sigma0_VH_M, Sigma0_VV_M, Sigma0_VH_S, Sigma0_VV_S\" -f Geotiff -t \"" + resultsPath + "\\collocated.tif\"");
-            SnapWrapper.RunCommand("speckle-filter " + collocatedPath + " -Pfilter=\"Refined Lee\" -PsourceBands=\"Sigma0_VH_M, Sigma0_VV_M\" -f Geotiff -t \"" + resultsPath + "\\composite.tif\"");
+            SnapWrapper.RunCommand("speckle-filter " + collocatedPath + " -Pfilter=\"Refined Lee\" -PsourceBands=\"Sigma0_VH_S, Sigma0_VH_M, Sigma0_VV_M\" -f Geotiff -t \"" + resultsPath + "\\composite.tif\"", verbose: false);
 
-            RasterLayer collocatedLayer = LoadRasterLayer(resultsPath + "\\collocated.tif");
+            RasterLayer collocatedLayer = LoadRasterLayer(resultsPath, "collocated.tif");
 
-            RasterLayer compositeLayer = LoadRasterLayer(resultsPath + "\\composite.tif");
-
-            return new(collocatedLayer, compositeLayer);
+            return collocatedLayer;
         }
 
         private string CorrectSARData(string sarPath, string name)

@@ -1,18 +1,12 @@
-﻿using ArcGIS.Core.CIM;
-using ArcGIS.Core.Data;
+﻿using ArcGIS.Core.Data;
 using ArcGIS.Core.Data.Raster;
-using ArcGIS.Core.Data.UtilityNetwork.Trace;
 using ArcGIS.Core.Geometry;
-using ArcGIS.Desktop.Core.Geoprocessing;
-using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Mapping;
 using OpenCvSharp;
 using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
 
 namespace ArcGISUtils
 {
@@ -67,9 +61,14 @@ namespace ArcGISUtils
             return System.IO.Path.GetDirectoryName(ArcGIS.Desktop.Core.Project.Current.URI);
         }
 
-        public static RasterLayer LoadRasterLayer(string path)
+        public static RasterLayer LoadRasterLayer(string directory, string name)
         {
-            return LayerFactory.Instance.CreateLayer(new Uri(path), MapView.Active.Map) as RasterLayer;
+            var rasterDataset = OpenRasterDataset(directory, name);
+            var rasterLayerCreationParams = new RasterLayerCreationParams(rasterDataset);
+            
+            return LayerFactory.Instance.CreateLayer<RasterLayer>(rasterLayerCreationParams, MapView.Active.Map);
+
+            //return LayerFactory.Instance.CreateLayer(new Uri(path), MapView.Active.Map) as RasterLayer;
         }
 
         public static Tuple<int, int, int, int> EnvolopeToImageRect(Envelope envelope, Raster raster)
@@ -189,10 +188,35 @@ namespace ArcGISUtils
             }
 
             raster.Write(0, 0, pixelBlock);
+            raster.Refresh();
 
-            MapView.Active.Redraw(false);
+            pixelBlock.Dispose();
         }
 
+        public static RasterDataset OpenRasterDataset(string folder, string name)
+        {
+            // Create a new raster dataset which is set to null
+            RasterDataset rasterDatasetToOpen = null;
+            try
+            {
+                // Create a new file system connection path to open raster datasets using the folder path.
+                FileSystemConnectionPath connectionPath = new FileSystemConnectionPath(new System.Uri(folder), FileSystemDatastoreType.Raster);
+                // Create a new file system data store for the connection path created above.
+                FileSystemDatastore dataStore = new FileSystemDatastore(connectionPath);
+                // Open the raster dataset.
+                rasterDatasetToOpen = dataStore.OpenDataset<RasterDataset>(name);
+                // Check if it is not null. If it is show a message box with the appropriate message.
+                if (rasterDatasetToOpen == null)
+                    System.Windows.MessageBox.Show("Failed to open raster dataset: " + name);
+            }
+            catch (Exception exc)
+            {
+                // If an exception occurs, show a message box with the appropriate message.
+                System.Windows.MessageBox.Show("Exception caught in OpenRasterDataset for raster: " + name + exc.Message);
+            }
+            return rasterDatasetToOpen;
+        }
+    
         public static bool IsShapeFile(FeatureLayer layer)
         {
             using FeatureClass featureClass = layer.GetFeatureClass();
@@ -273,38 +297,5 @@ namespace ArcGISUtils
             return Math.Floor(value * multiplier) / multiplier;
         }
 
-
-/*        public static void CreateRaster(string directory, string rasterName, Envelope extent, Size size, int bands)
-        {
-            double cellsize = extent.Width / size.Width;
-
-            IReadOnlyList<string> parameters = Geoprocessing.MakeValueArray(directory, // Output path
-                                                                            rasterName + ".tif", // Raster name
-                                                                            cellsize, // Cellsize
-                                                                            "8_BIT_UNSIGNED", // pixel type
-                                                                            extent.SpatialReference, // Spatial reference,
-                                                                            bands,
-                                                                            "",
-                                                                            "PYRAMIDS 3 BILINEAR DEFAULT",
-                                                                            "128 128",
-                                                                            "NONE",
-                                                                            extent.XMin.ToString() + " " + extent.YMax.ToString());
-
-            //IReadOnlyList<KeyValuePair<string, string>> environments = Geoprocessing.MakeEnvironmentArray(extent: extent);
-
-            var gpResult = Geoprocessing.ExecuteToolAsync("CreateRasterDataset_management", parameters, null, CancelableProgressor.None);
-            gpResult.Wait();
-
-            using (Geodatabase geodatabase = new Geodatabase(new FileGeodatabaseConnectionPath(new Uri(directory))))
-            using (RasterDataset rasterDataset = geodatabase.OpenDataset<RasterDataset>(rasterName + ".tif"))
-            {
-                Raster raster = rasterDataset.CreateDefaultRaster();
-
-                raster.SetExtent(extent);
-            }
-
-
-
-        }*/
     }
 }

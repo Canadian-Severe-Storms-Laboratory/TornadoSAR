@@ -7,15 +7,18 @@ using ArcGIS.Desktop.Mapping;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.IO.Packaging;
 
 public static class LandCover
 {
 
     #if DEBUG
-        private static string path = @"C:\Users\danie\Documents\Experiments\SAR analysis\landcover-2020-classification.tif";
+        private static string path = @"C:\Users\danie\Documents\Experiments\SAR analysis";
     #else
-        private static string path = AddinAssemblyLocation() + "\\landcover-2020-classification.tif";
+        private static string path = AddinAssemblyLocation();
     #endif
+
+    private static string fileName = "landcover-2020-classification.tif";
 
     public enum LandCoverType
     {
@@ -40,7 +43,7 @@ public static class LandCover
 
     public static Mat GetSection(RasterLayer referenceLayer) {
         
-        RasterLayer layer = LoadRasterLayer(path);
+        RasterLayer layer = LoadRasterLayer(path, fileName);
 
         Raster raster = layer.GetRaster();
         Raster refRaster = referenceLayer.GetRaster();
