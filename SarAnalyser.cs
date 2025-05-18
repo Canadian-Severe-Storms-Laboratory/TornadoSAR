@@ -4,11 +4,11 @@ using System.Threading.Tasks;
 using ArcGIS.Core.CIM;
 using ArcGIS.Core.Data.Raster;
 using ArcGIS.Core.Geometry;
+using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Internal.DesktopService;
 using ArcGIS.Desktop.Mapping;
 using OpenCvSharp;
 using static ArcGISUtils.Utils;
-using static LandCover.LandCoverType;
 
 namespace TornadoSAR
 {
@@ -17,14 +17,16 @@ namespace TornadoSAR
         private string prePath;
         private string postPath;
         private string resultsPath;
-        private FeatureLayer aoiLayer;
+        private FeatureLayer centerlineLayer;
+        private double bufferWidth;
 
 
-        public SarAnalyser(string prePath, string postPath, FeatureLayer aoiLayer)
+        public SarAnalyser(string prePath, string postPath, FeatureLayer centerlineLayer, double bufferWidth)
         {
             this.prePath = prePath;
             this.postPath = postPath;
-            this.aoiLayer = aoiLayer;
+            this.centerlineLayer = centerlineLayer;
+            this.bufferWidth = bufferWidth;
 
             System.IO.Directory.CreateDirectory(GetProjectPath() + "\\SAR_Analysis");
 
@@ -35,10 +37,10 @@ namespace TornadoSAR
 
         public async Task<Tuple<List<double>, List<double>>> Analyze()
         {
-            var collocatedLayer = ContructSARRasters();
+            Raster collocatedRaster = ContructSARRasters();
 
             Console.WriteLine("Loading Collocated Raster");
-            List<Mat> bands = LoadCollocatedRaster(collocatedLayer);
+            List<Mat> bands = LoadCollocatedRaster(collocatedRaster);
 
             Console.WriteLine("Constructing Composite Raster");
             Mat diff = ReverseDifference(bands);
@@ -47,13 +49,7 @@ namespace TornadoSAR
             RasterLayer compositeLayer = LoadComposite(diff);
 
             Console.WriteLine("Computing AOI Statistics");
-            Mat mask = PolygonAOIMask(collocatedLayer);
-
-            //Mat LandCoverMask = LandCover.TypeMask(LandCover.GetSection(collocatedLayer), [ConiferousForest, TaigaForest, DeciduousForest, MixedForest, Grassland, Shrubland]);
-
-            //Mat mask = polyMask.BitwiseAnd(LandCoverMask.Resize(polyMask.Size(), interpolation: InterpolationFlags.Nearest));
-
-            //WriteComposite(LandCoverMask.Resize(polyMask.Size(), interpolation: InterpolationFlags.Nearest), compositeLayer);
+            Mat mask = await CenterlineAOIMask(compositeLayer);
 
             return GetAOIValues(mask, diff);
         }
@@ -93,19 +89,44 @@ namespace TornadoSAR
             return diff;
         }
 
-        private Mat PolygonAOIMask(RasterLayer collocatedLayer)
+        private (double, double) LatLonToMercator(double lat, double lon)
         {
-            var aoiPolygons = ReadPolygons(collocatedLayer, aoiLayer);
 
-            var mask = new Mat(new OpenCvSharp.Size(collocatedLayer.GetRaster().GetWidth(), collocatedLayer.GetRaster().GetHeight()), MatType.CV_8UC1, new Scalar(0));
-            mask.FillPoly(aoiPolygons, new Scalar(255));
+            const double sm_a = 6378137.0;
+
+            lat = lat * Math.PI / 180.0;
+            lon = lon * Math.PI / 180.0;
+
+            double x = sm_a * lon;
+            double y = sm_a * Math.Log((Math.Sin(lat) + 1) / Math.Cos(lat));
+
+            return (x, y);
+        }
+
+        private async Task<Mat> CenterlineAOIMask(RasterLayer refLayer)
+        {
+            var polyline = ReadPolyline(refLayer, centerlineLayer);
+
+            var mask = new Mat(new OpenCvSharp.Size(refLayer.GetRaster().GetWidth(), refLayer.GetRaster().GetHeight()), MatType.CV_8UC1, new Scalar(0));
+
+            var latlong = await QueuedTask.Run(() => refLayer.GetRaster().GetMeanCellSize());
+            var coords = LatLonToMercator(latlong.Item1, latlong.Item2);
+
+            int scaleX = (int)Math.Round(bufferWidth / coords.Item1);
+            int scaleY = (int)Math.Round(bufferWidth / coords.Item2);
+
+            //mask.FillPoly(aoiPolygons, new Scalar(255));
+            mask.Polylines([polyline], false, new Scalar(255));
+            var kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(scaleX, scaleY));
+
+            Cv2.Dilate(mask, mask, kernel);
 
             return mask;
         }
 
         private string getStandardAOIExtentString()
         {
-            Envelope aoiExtent = aoiLayer.QueryExtent();
+            Envelope aoiExtent = centerlineLayer.QueryExtent();
             var extent = (Envelope)GeometryEngine.Instance.Project(aoiExtent, SpatialReferences.WGS84);
 
             double xmin = RoundDown(extent.XMin, 3);
@@ -137,26 +158,26 @@ namespace TornadoSAR
             return compositeLayer;
         }
 
-        private List<Mat> LoadCollocatedRaster(RasterLayer collocatedLayer)
+        private List<Mat> LoadCollocatedRaster(Raster collocatedRaster)
         {
-            Mat mask = LoadRasterBands<float>(collocatedLayer.GetRaster(), [0])[0];
-            var postBands = LoadRasterBands<float>(collocatedLayer.GetRaster(), [1, 2]);
+            Mat mask = LoadRasterBands<float>(collocatedRaster, [0])[0];
+            var postBands = LoadRasterBands<float>(collocatedRaster, [1, 2]);
 
-            var colorizer = collocatedLayer.GetColorizer() as CIMRasterRGBColorizer;
-            colorizer.RedBandIndex = 3;
-            colorizer.GreenBandIndex = 4;
-            collocatedLayer.SetColorizer(colorizer);
+            //var colorizer = collocatedLayer.GetColorizer() as CIMRasterRGBColorizer;
+            //colorizer.RedBandIndex = 3;
+            //colorizer.GreenBandIndex = 4;
+            //collocatedLayer.SetColorizer(colorizer);
 
-            var preBands = LoadRasterBands<float>(collocatedLayer.GetRaster(), [0, 1]);
+            var preBands = LoadRasterBands<float>(collocatedRaster, [0, 1]);
 
-            colorizer = collocatedLayer.GetColorizer() as CIMRasterRGBColorizer;
-            colorizer.AlphaBandIndex = 0;
-            colorizer.RedBandIndex = 1;
-            colorizer.GreenBandIndex = 2;
-            colorizer.BlueBandIndex = 3;
-            colorizer.DisplayBackgroundValue = true;
+            //colorizer = collocatedLayer.GetColorizer() as CIMRasterRGBColorizer;
+            //colorizer.AlphaBandIndex = 0;
+            //colorizer.RedBandIndex = 1;
+            //colorizer.GreenBandIndex = 2;
+            //colorizer.BlueBandIndex = 3;
+            //colorizer.DisplayBackgroundValue = true;
 
-            collocatedLayer.SetColorizer(colorizer);
+            //collocatedLayer.SetColorizer(colorizer);
 
             List<Mat> bands = [postBands[0], postBands[1], preBands[0], preBands[1]];
 
@@ -168,7 +189,7 @@ namespace TornadoSAR
             return bands;
         }
 
-        private RasterLayer ContructSARRasters()
+        private Raster ContructSARRasters()
         {
             Console.WriteLine("Constructing Pre Raster...");
             string preCorrectedPath = CorrectSARData(prePath, "pre");
@@ -182,9 +203,9 @@ namespace TornadoSAR
             SnapWrapper.RunCommand("speckle-filter " + collocatedPath + " -Pfilter=\"Refined Lee\" -PsourceBands=\"Sigma0_VH_M, Sigma0_VV_M, Sigma0_VH_S, Sigma0_VV_S\" -f Geotiff -t \"" + resultsPath + "\\collocated.tif\"");
             SnapWrapper.RunCommand("speckle-filter " + collocatedPath + " -Pfilter=\"Refined Lee\" -PsourceBands=\"Sigma0_VH_S, Sigma0_VH_M, Sigma0_VV_M\" -f Geotiff -t \"" + resultsPath + "\\composite.tif\"", verbose: false);
 
-            RasterLayer collocatedLayer = LoadRasterLayer(resultsPath, "collocated.tif");
+            Raster collocatedRaster = OpenRasterDataset(resultsPath, "collocated.tif").CreateFullRaster();
 
-            return collocatedLayer;
+            return collocatedRaster;
         }
 
         private string CorrectSARData(string sarPath, string name)

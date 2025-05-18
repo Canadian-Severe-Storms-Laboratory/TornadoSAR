@@ -17,7 +17,7 @@ public static class SnapWrapper
 
         process.ErrorDataReceived += (sender, args) => 
         {
-            if (args == null || args.Data == null || args.Data.Contains("WARNING:") || args.Data.Contains("INFO:")) return;
+            if (args == null || args.Data == null || args.Data.Contains("WARNING") || args.Data.Contains("INFO")) return;
             
             Console.Write(args.Data.Replace("\r", ""));     
         };

@@ -195,40 +195,32 @@ namespace ArcGISUtils
 
         public static RasterDataset OpenRasterDataset(string folder, string name)
         {
-            // Create a new raster dataset which is set to null
-            RasterDataset rasterDatasetToOpen = null;
+            RasterDataset rasterDataset = null;
+
             try
             {
-                // Create a new file system connection path to open raster datasets using the folder path.
-                FileSystemConnectionPath connectionPath = new FileSystemConnectionPath(new System.Uri(folder), FileSystemDatastoreType.Raster);
-                // Create a new file system data store for the connection path created above.
-                FileSystemDatastore dataStore = new FileSystemDatastore(connectionPath);
-                // Open the raster dataset.
-                rasterDatasetToOpen = dataStore.OpenDataset<RasterDataset>(name);
-                // Check if it is not null. If it is show a message box with the appropriate message.
-                if (rasterDatasetToOpen == null)
-                    System.Windows.MessageBox.Show("Failed to open raster dataset: " + name);
+                FileSystemConnectionPath connectionPath = new(new System.Uri(folder), FileSystemDatastoreType.Raster);
+
+                FileSystemDatastore dataStore = new(connectionPath);
+
+                rasterDataset = dataStore.OpenDataset<RasterDataset>(name);
+
+                if (rasterDataset == null) System.Windows.MessageBox.Show("Failed to open raster dataset: " + name);
             }
             catch (Exception exc)
             {
-                // If an exception occurs, show a message box with the appropriate message.
                 System.Windows.MessageBox.Show("Exception caught in OpenRasterDataset for raster: " + name + exc.Message);
             }
-            return rasterDatasetToOpen;
+
+            return rasterDataset;
         }
-    
+
         public static bool IsShapeFile(FeatureLayer layer)
         {
             using FeatureClass featureClass = layer.GetFeatureClass();
-            using Datastore datastore = featureClass.GetDatastore();
-            if (datastore is FileSystemDatastore)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            using Datastore datastore = featureClass.GetDatastore(); //core.data.geodatabase
+
+            return datastore is FileSystemDatastore || datastore is Geodatabase;
         }
 
         public static bool IsShapeFileOfType<T>(FeatureLayer layer) where T : Geometry
@@ -283,6 +275,30 @@ namespace ArcGISUtils
             }
 
             return polygons;
+        }
+
+        public static List<Point> ReadPolyline(RasterLayer rasterLayer, FeatureLayer polylineLayer)
+        {
+            List<Point> polyline = [];
+
+            Raster raster = rasterLayer.GetRaster();
+
+            using Table shp_table = polylineLayer.GetTable();
+            using RowCursor rowCursor = shp_table.Search();
+
+            rowCursor.MoveNext();
+
+            using Feature f = (Feature)rowCursor.Current;
+            Polyline polyShape = (Polyline)GeometryEngine.Instance.Project(f.GetShape(), rasterLayer.GetSpatialReference());
+            List<Point> polygon = [];
+
+            foreach (var p in polyShape.Points)
+            {
+                var pixelP = raster.MapToPixel(p.X, p.Y);
+                polyline.Add(new Point(pixelP.Item1, pixelP.Item2));
+            }
+
+            return polyline;
         }
 
         public static double RoundUp(double value, int decimalPlaces)

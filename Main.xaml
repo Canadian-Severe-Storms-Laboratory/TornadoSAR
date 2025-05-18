@@ -23,19 +23,16 @@
             <TabItem Header="Data Input" Width="100">
                 <Grid>
                     <local:FileSelector x:Name="preEventSelection" HorizontalAlignment="Left" Margin="30,50,0,0" VerticalAlignment="Top" Width="350"/>
-                    <local:FileSelector x:Name="postEventSelection" HorizontalAlignment="Left" Margin="30,150,0,0" VerticalAlignment="Top" Width="350"/>
-                    <local:RasterSelectionBox x:Name="aoiMaskSelection" HorizontalAlignment="Left" Margin="30,250,0,0" VerticalAlignment="Top" Width="350"/>
+                    <local:FileSelector x:Name="postEventSelection" HorizontalAlignment="Left" Margin="30,125,0,0" VerticalAlignment="Top" Width="350"/>
+                    <local:RasterSelectionBox x:Name="centerlineSelection" HorizontalAlignment="Left" Margin="30,200,0,0" VerticalAlignment="Top" Width="350"/>
                     <Label Content="Pre-Event SAR" HorizontalAlignment="Left" Margin="30,23,0,0" VerticalAlignment="Top" Width="250"/>
-                    <Label Content="Post-Event SAR" HorizontalAlignment="Left" Margin="30,123,0,0" VerticalAlignment="Top" Width="250"/>
-                    <Label Content="AOI Mask" HorizontalAlignment="Left" Margin="30,223,0,0" VerticalAlignment="Top" Width="250"/>
+                    <Label Content="Post-Event SAR" HorizontalAlignment="Left" Margin="30,98,0,0" VerticalAlignment="Top" Width="250"/>
+                    <Label Content="Centerline" HorizontalAlignment="Left" Margin="30,173,0,0" VerticalAlignment="Top" Width="250"/>
+                    <Label Content="Buffer Width" HorizontalAlignment="Left" Margin="30,248,0,0" VerticalAlignment="Top" Width="250"/>
+                    <Label Content="m" HorizontalAlignment="Left" Margin="128,272,0,0" VerticalAlignment="Top" Width="27" RenderTransformOrigin="0.333,1.036"/>
+                    <local:NumberBox x:Name="bufferWidthBox" NumberString="100" HorizontalAlignment="Left" Margin="30,275,0,0" VerticalAlignment="Top" Height="20" Width="100"/>
 
                     <Button x:Name="runButton" Content="Run" Click="RunAnalysis" HorizontalAlignment="Right" Margin="0,0,10,10" VerticalAlignment="Bottom" Width="70" Height="30"/>
-
-                </Grid>
-            </TabItem>
-            <TabItem Header="Settings" Width="100">
-                <Grid>
-                    <Label Content="TODO Add Settings Here..." HorizontalAlignment="Center" Margin="0,68,0,0" VerticalAlignment="Top"/>
 
                 </Grid>
             </TabItem>

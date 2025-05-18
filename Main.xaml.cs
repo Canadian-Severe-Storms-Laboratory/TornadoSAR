@@ -30,7 +30,7 @@ namespace TornadoSAR
 
                 runButton.IsEnabled = false;
 
-                tabController.SelectedIndex = 3;
+                tabController.SelectedIndex = 2;
 
                 textBoxstreamWriter = new TextBoxStreamWriter(ConsoleTextBox);
                 textBoxstreamWriter.RedirectStandardOutput();
@@ -52,7 +52,7 @@ namespace TornadoSAR
                 PlotHistogram(VHvalues, VHPlot, "VH");
                 PlotHistogram(VVvalues, VVPlot, "VV");
 
-                tabController.SelectedIndex = 2;
+                tabController.SelectedIndex = 1;
 
                 textBoxstreamWriter.StopSpinning();
 
@@ -90,7 +90,7 @@ namespace TornadoSAR
 
         private SarAnalyser BuildSarAnalyser()
         {
-            return new SarAnalyser(preEventSelection.GetFilePath(), postEventSelection.GetFilePath(), aoiMaskSelection.GetSelectedLayer());
+            return new SarAnalyser(preEventSelection.GetFilePath(), postEventSelection.GetFilePath(), centerlineSelection.GetSelectedLayer(), bufferWidthBox.GetNumber());
         }
 
         private async Task<bool> MissingInput()
@@ -105,25 +105,30 @@ namespace TornadoSAR
                 MessageBox.Show("Please select a post-event zip file");
                 return true;
             }
-            if (aoiMaskSelection.IsEmpty())
+            if (centerlineSelection.IsEmpty())
             {
-                MessageBox.Show("Please select an aoi mask shapefile");
+                MessageBox.Show("Please select a centerline shapefile");
                 return true;
             }
-
-            FeatureLayer aoiMaskLayer = aoiMaskSelection.GetSelectedLayer();
+            if (bufferWidthBox.GetNumber() <= 0.0)
+            {
+                MessageBox.Show("Please Enter a valid buffer width");
+                return true;
+            }
+            
+            FeatureLayer centerlineLayer = centerlineSelection.GetSelectedLayer();
 
             return await QueuedTask.Run(() =>
             {
-                if (aoiMaskLayer.GetSpatialReference().Name.ToLower().Contains("unkown"))
+                if (centerlineLayer.GetSpatialReference().Name.ToLower().Contains("unkown"))
                 {
                     MessageBox.Show("Shapefile does not have a spatial reference. Please use the Define Projection tool");
                     return true;
                 }
 
-                if (IsShapeFileOfType<Polygon>(aoiMaskLayer)) return false;
+                if (IsShapeFileOfType<Polyline>(centerlineLayer)) return false;
 
-                MessageBox.Show("Please select a polygon shapefile");
+                MessageBox.Show("Please select a polyline shapefile");
                 return true;
             });
         }
